@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能深蹲教练</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="stat-box">
+                <span class="label">深蹲个数</span>
+                <span class="value big" id="count">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="label">动作状态</span>
+                <span class="value" id="state-badge">站立</span>
+            </div>
+            <div class="stat-box">
+                <span class="label">准确率</span>
+                <span class="value" id="accuracy">0%</span>
+            </div>
+        </header>
+
+        <div class="camera-wrapper">
+            <video id="video" playsinline></video>
+            <canvas id="output"></canvas>
+            
+            <div id="loading" class="overlay">
+                <div class="spinner"></div>
+                <p>正在初始化 AI 教练...</p>
+            </div>
+            
+            <div id="feedback" class="feedback-toast hidden">请下蹲！</div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" onclick="startCoach()">📸 开启摄像头开始训练</button>
+            <div class="options">
+                <label>
+                    <input type="checkbox" id="voiceToggle" checked> 🔊 语音指导
+                </label>
+            </div>
+        </div>
+        
+        <p class="tips">
+            请侧身站在摄像头前，确保全身（特别是腿部）在画面中。<br>
+            AI 会计算 <b>大腿-小腿</b> 夹角。
+        </p>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
