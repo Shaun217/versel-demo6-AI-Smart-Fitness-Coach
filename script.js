@@ -27,8 +27,11 @@ let currentStage = "UP";
 let lastFeedbackTime = 0;
 const synth = window.speechSynthesis;
 
+// 判断是否为移动设备
+const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
 // ==========================================
-// 1. 初始化摄像头
+// 1. 初始化摄像头 (智能判断前后置)
 // ==========================================
 async function setupCamera() {
     loadingText.innerText = "📷 正在请求摄像头权限...";
@@ -37,11 +40,29 @@ async function setupCamera() {
         throw new Error('你的浏览器不支持摄像头 API，请使用 Chrome 或 Safari。');
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 640, height: 480 },
-        audio: false
-    });
+    // 根据设备决定配置
+    const videoConstraints = {
+        audio: false,
+        video: {
+            // 移动端通常不需要强制 640x480，使用 ideal 让系统自动适配宽高比
+            width: isMobile ? { ideal: 640 } : 640,
+            height: isMobile ? { ideal: 480 } : 480,
+            // 【关键修改】：移动端用 'environment' (后置)，电脑用 'user' (前置)
+            facingMode: isMobile ? "environment" : "user"
+        }
+    };
+
+    const stream = await navigator.mediaDevices.getUserMedia(videoConstraints);
     video.srcObject = stream;
+
+    // 【关键修改】：如果是后置摄像头，不需要镜像翻转，添加 no-mirror 类
+    if (isMobile) {
+        video.classList.add('no-mirror');
+        canvas.classList.add('no-mirror');
+    } else {
+        video.classList.remove('no-mirror');
+        canvas.classList.remove('no-mirror');
+    }
 
     return new Promise((resolve) => {
         video.onloadedmetadata = () => {
@@ -87,15 +108,24 @@ async function poseDetectionFrame() {
     if (!isRunning) return;
 
     try {
+        // 如果是后置摄像头(isMobile)，不需要水平翻转 flipHorizontal: false
+        // 如果是前置摄像头，通常需要镜像，所以 flipHorizontal: true
         const pose = await net.estimateSinglePose(video, {
-            flipHorizontal: true
+            flipHorizontal: !isMobile
         });
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
-        ctx.scale(-1, 1);
-        ctx.translate(-canvas.width, 0);
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        if (isMobile) {
+            // 移动端后置：正常绘制，不需要镜像翻转
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        } else {
+            // 电脑端前置：需要镜像翻转绘制
+            ctx.scale(-1, 1);
+            ctx.translate(-canvas.width, 0);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        }
 
         if (pose.score > 0.4) {
             drawSkeleton(pose.keypoints);
@@ -189,25 +219,25 @@ function analyzeSquat(keypoints) {
 // ==========================================
 async function startCoach() {
     startBtn.disabled = true;
-    
-    // 【关键修复】：点击按钮后，手动显示加载层
-    loadingEl.classList.remove('hidden');
+    loadingEl.classList.remove('hidden'); // 显示加载层
     
     try {
         await setupCamera();
         
         loadingText.innerText = "🧠 正在初始化 AI 模型...";
         
+        // 移动端为了性能，可以用更小的 multiplier (比如 0.50)
+        const mobileNetConfig = isMobile ? 0.50 : 0.75;
+
         net = await posenet.load({
             architecture: 'MobileNetV1',
             outputStride: 16,
             inputResolution: { width: 640, height: 480 },
-            multiplier: 0.75 
+            multiplier: mobileNetConfig 
         });
         
-        console.log("PoseNet Loaded. API Key configured.");
+        console.log(`PoseNet Loaded. Mobile: ${isMobile}, Multiplier: ${mobileNetConfig}`);
 
-        // 加载完成，隐藏加载层，隐藏按钮
         loadingEl.classList.add('hidden');
         startBtn.classList.add('hidden');
         
@@ -217,9 +247,8 @@ async function startCoach() {
 
     } catch (error) {
         console.error(error);
-        alert("启动失败: " + error.message + "\n建议使用 Chrome 浏览器并允许摄像头权限。");
+        alert("启动失败: " + error.message + "\n如果使用手机，请确保在 Safari 或 Chrome 中打开。");
         
-        // 失败时恢复按钮状态
         startBtn.disabled = false;
         startBtn.innerText = "重试";
         startBtn.classList.remove('hidden');

@@ -10,7 +10,7 @@ body {
 
 .app-container {
     width: 100%;
-    max-width: 640px; /* 匹配视频宽度 */
+    max-width: 640px; 
     padding: 20px;
     display: flex;
     flex-direction: column;
@@ -56,11 +56,10 @@ header {
     color: #bb86fc;
 }
 
-/* 摄像头容器 */
 .camera-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 4/3; /* 保持 640x480 比例 */
+    aspect-ratio: 4/3; 
     background: #000;
     border-radius: 16px;
     overflow: hidden;
@@ -68,12 +67,18 @@ header {
     border: 2px solid #333;
 }
 
+/* 默认状态：镜像翻转 (适合前置摄像头/Webcam) */
 video, canvas {
     width: 100%;
     height: 100%;
     object-fit: cover;
     display: block;
-    transform: scaleX(-1); /* 镜像翻转 */
+    transform: scaleX(-1); 
+}
+
+/* 【关键修改】：如果是后置摄像头，通过 JS 添加此 Class，取消翻转 */
+video.no-mirror, canvas.no-mirror {
+    transform: none !important;
 }
 
 canvas {
@@ -83,7 +88,6 @@ canvas {
     z-index: 2;
 }
 
-/* 加载遮罩 */
 .overlay {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -105,7 +109,6 @@ canvas {
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* 实时反馈气泡 */
 .feedback-toast {
     position: absolute;
     bottom: 30px;
@@ -125,7 +128,6 @@ canvas {
 
 .hidden { display: none !important; }
 
-/* 按钮区域 */
 .controls {
     width: 100%;
     margin-top: 25px;
