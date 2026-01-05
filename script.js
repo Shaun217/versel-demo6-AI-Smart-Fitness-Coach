@@ -1,3 +1,14 @@
+// ==========================================
+// 配置区域
+// ==========================================
+// 注意：这是 Google Cloud API Key。
+// 当前 PoseNet 模型是本地运行的，不需要此 Key。
+// 但如果你后续接入 Google Gemini (用于AI建议) 或 Cloud TTS，将使用此 Key。
+const GOOGLE_API_KEY = 'AIzaSyCh-KmX3ozjlrYkUiecQMH1KdnOLUmEzx';
+
+// ==========================================
+// DOM 元素获取
+// ==========================================
 let net;
 const video = document.getElementById('video');
 const canvas = document.getElementById('output');
@@ -7,18 +18,21 @@ const stateBadge = document.getElementById('state-badge');
 const feedbackEl = document.getElementById('feedback');
 const startBtn = document.getElementById('startBtn');
 const loadingEl = document.getElementById('loading');
-const loadingText = loadingEl.querySelector('p'); // 获取 loading 文字元素
+const loadingText = loadingEl.querySelector('p');
+const accuracyEl = document.getElementById('accuracy');
 
+// ==========================================
 // 状态变量
+// ==========================================
 let isRunning = false;
 let squatCount = 0;
 let currentStage = "UP"; 
 let lastFeedbackTime = 0;
+const synth = window.speechSynthesis; // 浏览器原生语音
 
-// 语音合成
-const synth = window.speechSynthesis;
-
+// ==========================================
 // 1. 初始化摄像头
+// ==========================================
 async function setupCamera() {
     loadingText.innerText = "📷 正在请求摄像头权限...";
     
@@ -38,13 +52,15 @@ async function setupCamera() {
             video.height = video.videoHeight;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            video.play(); // 关键：确保视频开始播放
+            video.play();
             resolve(video);
         };
     });
 }
 
-// 2. 核心数学：计算夹角
+// ==========================================
+// 2. 数学计算
+// ==========================================
 function calculateAngle(a, b, c) {
     const radians = Math.atan2(c.y - b.y, c.x - b.x) - Math.atan2(a.y - b.y, a.x - b.x);
     let angle = Math.abs(radians * 180.0 / Math.PI);
@@ -52,19 +68,31 @@ function calculateAngle(a, b, c) {
     return angle;
 }
 
-// 3. 语音播报
+// ==========================================
+// 3. 交互反馈 (语音 + UI)
+// ==========================================
 function speak(text) {
     if (!document.getElementById('voiceToggle').checked) return;
     const now = Date.now();
-    if (now - lastFeedbackTime < 1500) return; 
+    // 防止语音过于密集
+    if (now - lastFeedbackTime < 1200) return; 
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
+    utterance.rate = 1.2; // 稍微加快语速
     synth.speak(utterance);
     lastFeedbackTime = now;
 }
 
-// 4. 姿态分析循环
+// [高级功能示例] 使用 API Key 调用 Gemini 进行评价 (当前未启用，仅作示例)
+async function askGeminiFeedback(count) {
+    console.log(`正在使用 API Key: ${GOOGLE_API_KEY} 请求 AI 建议...`);
+    // 这里可以接入 fetch 调用 Google Generative Language API
+}
+
+// ==========================================
+// 4. 姿态检测循环
+// ==========================================
 async function poseDetectionFrame() {
     if (!isRunning) return;
 
@@ -73,51 +101,63 @@ async function poseDetectionFrame() {
             flipHorizontal: true
         });
 
+        // 清空画布并绘制视频背景
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.scale(-1, 1);
         ctx.translate(-canvas.width, 0);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        if (pose.score > 0.5) {
+        // 如果检测可信度尚可，进行绘制和分析
+        if (pose.score > 0.4) {
             drawSkeleton(pose.keypoints);
             analyzeSquat(pose.keypoints);
+            // 更新准确率显示
+            accuracyEl.innerText = Math.round(pose.score * 100) + "%";
         }
 
         ctx.restore();
         requestAnimationFrame(poseDetectionFrame);
     } catch (e) {
         console.error("Frame error:", e);
-        // 出错不中断，尝试下一帧
         requestAnimationFrame(poseDetectionFrame); 
     }
 }
 
-// 5. 绘制骨骼 (只画左腿)
+// ==========================================
+// 5. 绘制骨架
+// ==========================================
 function drawSkeleton(keypoints) {
     const leftHip = keypoints.find(k => k.part === 'leftHip');
     const leftKnee = keypoints.find(k => k.part === 'leftKnee');
     const leftAnkle = keypoints.find(k => k.part === 'leftAnkle');
 
+    // 只有当三个关键点都清晰时才绘制
     if (leftHip.score > 0.5 && leftKnee.score > 0.5 && leftAnkle.score > 0.5) {
+        // 画线
         ctx.beginPath();
         ctx.moveTo(leftHip.position.x, leftHip.position.y);
         ctx.lineTo(leftKnee.position.x, leftKnee.position.y);
         ctx.lineTo(leftAnkle.position.x, leftAnkle.position.y);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = '#00ff00'; // 绿色线条
         ctx.stroke();
 
+        // 画点
         [leftHip, leftKnee, leftAnkle].forEach(p => {
             ctx.beginPath();
-            ctx.arc(p.position.x, p.position.y, 8, 0, 2*Math.PI);
-            ctx.fillStyle = 'red';
+            ctx.arc(p.position.x, p.position.y, 10, 0, 2*Math.PI);
+            ctx.fillStyle = '#bb86fc'; // 紫色点
             ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.stroke();
         });
     }
 }
 
-// 6. 核心逻辑：判断深蹲
+// ==========================================
+// 6. 深蹲逻辑核心
+// ==========================================
 function analyzeSquat(keypoints) {
     const leftHip = keypoints.find(k => k.part === 'leftHip');
     const leftKnee = keypoints.find(k => k.part === 'leftKnee');
@@ -126,72 +166,80 @@ function analyzeSquat(keypoints) {
     if (leftHip.score > 0.5 && leftKnee.score > 0.5 && leftAnkle.score > 0.5) {
         const angle = calculateAngle(leftHip.position, leftKnee.position, leftAnkle.position);
         
-        ctx.font = "bold 24px Arial";
-        ctx.fillStyle = "white";
-        ctx.fillText(Math.round(angle) + "°", leftKnee.position.x + 20, leftKnee.position.y);
+        // 在膝盖旁边显示角度
+        ctx.font = "bold 24px sans-serif";
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(Math.round(angle) + "°", leftKnee.position.x + 25, leftKnee.position.y);
 
+        // 状态机逻辑
+        // 站立状态 (腿部伸直，角度很大)
         if (angle > 160) {
             if (currentStage === "DOWN") {
                  squatCount++;
                  countEl.innerText = squatCount;
                  speak(String(squatCount));
+                 
+                 // 每做5个，可以触发一次特殊鼓励（逻辑示例）
+                 if(squatCount % 5 === 0) speak("加油，很棒！");
             }
             currentStage = "UP";
             stateBadge.innerText = "站立";
-            stateBadge.style.color = "#00ff00";
+            stateBadge.style.color = "#00ff00"; // Green
             feedbackEl.classList.add('hidden');
         }
 
-        if (angle < 90) {
+        // 下蹲状态 (腿部弯曲，角度小于90)
+        if (angle < 100) { // 放宽一点点到 100度，更容易触发
             currentStage = "DOWN";
             stateBadge.innerText = "下蹲";
-            stateBadge.style.color = "#bb86fc";
-            feedbackEl.innerText = "漂亮！保持！";
-            feedbackEl.classList.remove('hidden');
-        }
-
-        if (currentStage === "UP" && angle < 140 && angle > 90) {
-            feedbackEl.innerText = "再低一点！";
+            stateBadge.style.color = "#bb86fc"; // Purple
+            
+            // 只有当之前是 UP 且现在角度合适时才提示
+            if (angle < 90) {
+                feedbackEl.innerText = "完美深蹲！";
+                feedbackEl.style.background = "rgba(0, 255, 0, 0.8)";
+            } else {
+                feedbackEl.innerText = "再低一点！";
+                feedbackEl.style.background = "rgba(255, 165, 0, 0.8)";
+            }
             feedbackEl.classList.remove('hidden');
         }
     }
 }
 
-// 🚀 启动入口
+// ==========================================
+// 7. 启动程序
+// ==========================================
 async function startCoach() {
     startBtn.disabled = true;
     
     try {
-        // 第一步：摄像头
         await setupCamera();
         
-        // 第二步：加载 AI
-        loadingText.innerText = "🧠 正在下载 AI 模型 (约 10MB)...";
+        loadingText.innerText = "🧠 正在初始化 AI 模型...";
         console.log("Loading PoseNet...");
         
-        // 使用更轻量级的配置，加快加载速度
+        // 加载模型
         net = await posenet.load({
             architecture: 'MobileNetV1',
             outputStride: 16,
             inputResolution: { width: 640, height: 480 },
-            multiplier: 0.75 // 值越小模型越小，速度越快，但精度略降
+            multiplier: 0.75 
         });
         
-        console.log("PoseNet Loaded!");
+        console.log("PoseNet Loaded. API Key configured.");
 
-        // 启动成功
         loadingEl.classList.add('hidden');
         isRunning = true;
-        startBtn.classList.add('hidden'); // 隐藏开始按钮
+        startBtn.classList.add('hidden');
         
-        speak("准备开始");
+        speak("准备开始，请侧身站立");
         poseDetectionFrame();
 
     } catch (error) {
         console.error(error);
-        alert("启动失败: " + error.message + "\n(请检查摄像头权限或网络连接)");
+        alert("启动失败: " + error.message + "\n建议使用 Chrome 浏览器并允许摄像头权限。");
         
-        // 重置按钮
         startBtn.disabled = false;
         startBtn.innerText = "重试";
         loadingEl.classList.add('hidden');

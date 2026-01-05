@@ -6,8 +6,8 @@
     <title>AI 智能深蹲教练</title>
     <link rel="stylesheet" href="style.css">
     
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.11.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/posenet@2.2.2"></script>
 </head>
 <body>
     <div class="app-container">
@@ -17,11 +17,11 @@
                 <span class="value big" id="count">0</span>
             </div>
             <div class="stat-box">
-                <span class="label">动作状态</span>
+                <span class="label">当前状态</span>
                 <span class="value" id="state-badge">站立</span>
             </div>
             <div class="stat-box">
-                <span class="label">准确率</span>
+                <span class="label">置信度</span>
                 <span class="value" id="accuracy">0%</span>
             </div>
         </header>
@@ -32,24 +32,26 @@
             
             <div id="loading" class="overlay">
                 <div class="spinner"></div>
-                <p>正在初始化 AI 教练...</p>
+                <p>正在连接硬件...</p>
             </div>
             
             <div id="feedback" class="feedback-toast hidden">请下蹲！</div>
         </div>
 
         <div class="controls">
-            <button id="startBtn" onclick="startCoach()">📸 开启摄像头开始训练</button>
+            <button id="startBtn" onclick="startCoach()">📸 开启 AI 教练</button>
             <div class="options">
                 <label>
-                    <input type="checkbox" id="voiceToggle" checked> 🔊 语音指导
+                    <input type="checkbox" id="voiceToggle" checked> 🔊 启用语音指导
                 </label>
             </div>
         </div>
         
         <p class="tips">
-            请侧身站在摄像头前，确保全身（特别是腿部）在画面中。<br>
-            AI 会计算 <b>大腿-小腿</b> 夹角。
+            💡 <b>使用说明：</b><br>
+            1. 请务必<b>侧身</b>对着摄像头，露出全身。<br>
+            2. AI 将通过 Google Key 验证（如已启用云服务）。<br>
+            3. 确保光线充足，背景整洁。
         </p>
     </div>
 
