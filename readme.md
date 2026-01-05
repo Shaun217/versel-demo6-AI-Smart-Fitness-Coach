@@ -2,11 +2,6 @@
 
 这是一个利用计算机视觉技术（Computer Vision）实现的网页版健身教练。它利用三角函数和状态机逻辑，实时分析你的运动姿态。
 
-## 🔑 API 配置
-已在 `script.js` 中配置 Google API Key：
-> `const GOOGLE_API_KEY = 'AIzaSyCh-KmX3ozjlrYkUiecQMH1KdnOLUmEzx';`
-
-*注意：当前核心动作捕捉使用的是 TensorFlow.js (PoseNet) 本地模型，不消耗 API 配额。该 Key 预留给未来的 Google Cloud TTS 或 Gemini AI 建议功能。*
 
 ## 🧠 技术原理
 
