@@ -1,9 +1,6 @@
 // ==========================================
 // 配置区域
 // ==========================================
-// 注意：这是 Google Cloud API Key。
-// 当前 PoseNet 模型是本地运行的，不需要此 Key。
-// 但如果你后续接入 Google Gemini (用于AI建议) 或 Cloud TTS，将使用此 Key。
 const GOOGLE_API_KEY = 'AIzaSyCh-KmX3ozjlrYkUiecQMH1KdnOLUmEzx';
 
 // ==========================================
@@ -28,7 +25,7 @@ let isRunning = false;
 let squatCount = 0;
 let currentStage = "UP"; 
 let lastFeedbackTime = 0;
-const synth = window.speechSynthesis; // 浏览器原生语音
+const synth = window.speechSynthesis;
 
 // ==========================================
 // 1. 初始化摄像头
@@ -69,25 +66,18 @@ function calculateAngle(a, b, c) {
 }
 
 // ==========================================
-// 3. 交互反馈 (语音 + UI)
+// 3. 交互反馈
 // ==========================================
 function speak(text) {
     if (!document.getElementById('voiceToggle').checked) return;
     const now = Date.now();
-    // 防止语音过于密集
     if (now - lastFeedbackTime < 1200) return; 
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'zh-CN';
-    utterance.rate = 1.2; // 稍微加快语速
+    utterance.rate = 1.2;
     synth.speak(utterance);
     lastFeedbackTime = now;
-}
-
-// [高级功能示例] 使用 API Key 调用 Gemini 进行评价 (当前未启用，仅作示例)
-async function askGeminiFeedback(count) {
-    console.log(`正在使用 API Key: ${GOOGLE_API_KEY} 请求 AI 建议...`);
-    // 这里可以接入 fetch 调用 Google Generative Language API
 }
 
 // ==========================================
@@ -101,18 +91,15 @@ async function poseDetectionFrame() {
             flipHorizontal: true
         });
 
-        // 清空画布并绘制视频背景
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.save();
         ctx.scale(-1, 1);
         ctx.translate(-canvas.width, 0);
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        // 如果检测可信度尚可，进行绘制和分析
         if (pose.score > 0.4) {
             drawSkeleton(pose.keypoints);
             analyzeSquat(pose.keypoints);
-            // 更新准确率显示
             accuracyEl.innerText = Math.round(pose.score * 100) + "%";
         }
 
@@ -132,22 +119,19 @@ function drawSkeleton(keypoints) {
     const leftKnee = keypoints.find(k => k.part === 'leftKnee');
     const leftAnkle = keypoints.find(k => k.part === 'leftAnkle');
 
-    // 只有当三个关键点都清晰时才绘制
     if (leftHip.score > 0.5 && leftKnee.score > 0.5 && leftAnkle.score > 0.5) {
-        // 画线
         ctx.beginPath();
         ctx.moveTo(leftHip.position.x, leftHip.position.y);
         ctx.lineTo(leftKnee.position.x, leftKnee.position.y);
         ctx.lineTo(leftAnkle.position.x, leftAnkle.position.y);
         ctx.lineWidth = 6;
-        ctx.strokeStyle = '#00ff00'; // 绿色线条
+        ctx.strokeStyle = '#00ff00';
         ctx.stroke();
 
-        // 画点
         [leftHip, leftKnee, leftAnkle].forEach(p => {
             ctx.beginPath();
             ctx.arc(p.position.x, p.position.y, 10, 0, 2*Math.PI);
-            ctx.fillStyle = '#bb86fc'; // 紫色点
+            ctx.fillStyle = '#bb86fc';
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.stroke();
@@ -166,35 +150,28 @@ function analyzeSquat(keypoints) {
     if (leftHip.score > 0.5 && leftKnee.score > 0.5 && leftAnkle.score > 0.5) {
         const angle = calculateAngle(leftHip.position, leftKnee.position, leftAnkle.position);
         
-        // 在膝盖旁边显示角度
         ctx.font = "bold 24px sans-serif";
         ctx.fillStyle = "#ffffff";
         ctx.fillText(Math.round(angle) + "°", leftKnee.position.x + 25, leftKnee.position.y);
 
-        // 状态机逻辑
-        // 站立状态 (腿部伸直，角度很大)
         if (angle > 160) {
             if (currentStage === "DOWN") {
                  squatCount++;
                  countEl.innerText = squatCount;
                  speak(String(squatCount));
-                 
-                 // 每做5个，可以触发一次特殊鼓励（逻辑示例）
                  if(squatCount % 5 === 0) speak("加油，很棒！");
             }
             currentStage = "UP";
             stateBadge.innerText = "站立";
-            stateBadge.style.color = "#00ff00"; // Green
+            stateBadge.style.color = "#00ff00";
             feedbackEl.classList.add('hidden');
         }
 
-        // 下蹲状态 (腿部弯曲，角度小于90)
-        if (angle < 100) { // 放宽一点点到 100度，更容易触发
+        if (angle < 100) {
             currentStage = "DOWN";
             stateBadge.innerText = "下蹲";
-            stateBadge.style.color = "#bb86fc"; // Purple
+            stateBadge.style.color = "#bb86fc";
             
-            // 只有当之前是 UP 且现在角度合适时才提示
             if (angle < 90) {
                 feedbackEl.innerText = "完美深蹲！";
                 feedbackEl.style.background = "rgba(0, 255, 0, 0.8)";
@@ -213,13 +190,14 @@ function analyzeSquat(keypoints) {
 async function startCoach() {
     startBtn.disabled = true;
     
+    // 【关键修复】：点击按钮后，手动显示加载层
+    loadingEl.classList.remove('hidden');
+    
     try {
         await setupCamera();
         
         loadingText.innerText = "🧠 正在初始化 AI 模型...";
-        console.log("Loading PoseNet...");
         
-        // 加载模型
         net = await posenet.load({
             architecture: 'MobileNetV1',
             outputStride: 16,
@@ -229,10 +207,11 @@ async function startCoach() {
         
         console.log("PoseNet Loaded. API Key configured.");
 
+        // 加载完成，隐藏加载层，隐藏按钮
         loadingEl.classList.add('hidden');
-        isRunning = true;
         startBtn.classList.add('hidden');
         
+        isRunning = true;
         speak("准备开始，请侧身站立");
         poseDetectionFrame();
 
@@ -240,8 +219,10 @@ async function startCoach() {
         console.error(error);
         alert("启动失败: " + error.message + "\n建议使用 Chrome 浏览器并允许摄像头权限。");
         
+        // 失败时恢复按钮状态
         startBtn.disabled = false;
         startBtn.innerText = "重试";
+        startBtn.classList.remove('hidden');
         loadingEl.classList.add('hidden');
     }
 }
