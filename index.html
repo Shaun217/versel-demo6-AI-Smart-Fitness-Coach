@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 智能深蹲教练</title>
     <link rel="stylesheet" href="style.css">
     
@@ -13,11 +13,11 @@
     <div class="app-container">
         <header>
             <div class="stat-box">
-                <span class="label">深蹲个数</span>
+                <span class="label">个数</span>
                 <span class="value big" id="count">0</span>
             </div>
             <div class="stat-box">
-                <span class="label">当前状态</span>
+                <span class="label">状态</span>
                 <span class="value" id="state-badge">站立</span>
             </div>
             <div class="stat-box">
@@ -32,26 +32,29 @@
             
             <div id="loading" class="overlay hidden">
                 <div class="spinner"></div>
-                <p>正在连接硬件...</p>
+                <p>正在连接...</p>
             </div>
             
             <div id="feedback" class="feedback-toast hidden">请下蹲！</div>
         </div>
 
         <div class="controls">
-            <button id="startBtn" onclick="startCoach()">📸 开启 AI 教练</button>
+            <div class="btn-group">
+                <button id="startBtn" onclick="startCoach()">📸 开启教练</button>
+                <button id="switchBtn" class="secondary hidden" onclick="toggleCamera()">🔄 切换镜头</button>
+            </div>
+
             <div class="options">
                 <label>
-                    <input type="checkbox" id="voiceToggle" checked> 🔊 启用语音指导
+                    <input type="checkbox" id="voiceToggle" checked> 🔊 语音指导
                 </label>
             </div>
         </div>
         
         <p class="tips">
-            💡 <b>使用说明：</b><br>
-            1. 请务必<b>侧身</b>对着摄像头，露出全身。<br>
-            2. 确保浏览器地址栏没有拦截摄像头权限。<br>
-            3. 请在光线充足的环境下使用。
+            💡 <b>提示：</b><br>
+            1. 画面已调整为竖屏，更容易全身入镜。<br>
+            2. 请侧身站立，确保<b>脚踝</b>到<b>腰部</b>都在框内。
         </p>
     </div>
 
